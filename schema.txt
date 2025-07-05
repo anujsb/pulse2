@@ -1,0 +1,112 @@
+
+
+create table users (
+  id text primary key, -- Clerk user ID
+  email text unique,
+  display_name text,
+  avatar_url text,
+  created_at timestamptz default now()
+);
+
+create table nudges (
+  id uuid primary key default gen_random_uuid(),
+  sender_id text references users(id) on delete cascade,
+  receiver_id text references users(id) on delete cascade,
+  message text,
+  emoji text,
+  sticker_url text,
+  created_at timestamptz default now()
+);
+
+create index nudges_receiver_id_idx on nudges(receiver_id);
+create index nudges_sender_id_idx on nudges(sender_id);
+
+
+create table canvas_rooms (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  created_by text references users(id) on delete set null,
+  created_at timestamptz default now()
+);
+
+
+create table canvas_strokes (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid references canvas_rooms(id) on delete cascade,
+  user_id text references users(id) on delete set null,
+  stroke_data jsonb not null, -- e.g. { "points": [...], "color": "#fff", ... }
+  created_at timestamptz default now()
+);
+
+create index canvas_strokes_room_id_idx on canvas_strokes(room_id);
+
+
+create table geo_pings (
+  id uuid primary key default gen_random_uuid(),
+  user_id text references users(id) on delete cascade,
+  lat double precision not null,
+  lng double precision not null,
+  created_at timestamptz default now()
+);
+
+create index geo_pings_user_id_idx on geo_pings(user_id);
+create index geo_pings_created_at_idx on geo_pings(created_at);
+
+
+create table moods (
+  id uuid primary key default gen_random_uuid(),
+  user_id text references users(id) on delete cascade,
+  mood_key text not null, -- e.g. "happy", "sad", "excited"
+  updated_at timestamptz default now(),
+  constraint one_mood_per_user unique (user_id)
+);
+
+create table events (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  date timestamptz not null,
+  created_by text references users(id) on delete set null,
+  created_at timestamptz default now()
+);
+
+-- Many-to-many: event participants
+create table event_participants (
+  event_id uuid references events(id) on delete cascade,
+  user_id text references users(id) on delete cascade,
+  primary key (event_id, user_id)
+);
+
+
+create table journal_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id text references users(id) on delete cascade,
+  date date not null,
+  text text,
+  created_at timestamptz default now(),
+  constraint one_entry_per_user_per_day unique (user_id, date)
+);
+
+create index journal_entries_user_id_idx on journal_entries(user_id);
+
+
+create table voice_clips (
+  id uuid primary key default gen_random_uuid(),
+  user_id text references users(id) on delete cascade,
+  url text not null,
+  duration integer, -- seconds
+  created_at timestamptz default now()
+);
+
+create index voice_clips_user_id_idx on voice_clips(user_id);
+
+create table themes (
+  id uuid primary key default gen_random_uuid(),
+  user_id text references users(id) on delete cascade,
+  accent_color text, -- e.g. "#FF00AA"
+  sound_url text,
+  updated_at timestamptz default now(),
+  constraint one_theme_per_user unique (user_id)
+);
+
+
+
